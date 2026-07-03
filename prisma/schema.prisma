@@ -1,0 +1,80 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  engineType = "library"
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         String   @default("ADMIN") // e.g. "ADMIN" or "SUPER_ADMIN"
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Employee {
+  id                 String   @id @default(uuid())
+  employeeCode       String?  @unique
+  email              String   @unique
+  passwordHash       String
+  name               String
+  role               String   @default("RIDER") // e.g. "RIDER" or "MERCHANDISER"
+  phone              String?
+  status             String   @default("OFFLINE") // "ONLINE" or "OFFLINE"
+  
+  // Last known coordinates (for quick retrieval)
+  lastLat            Float?
+  lastLng            Float?
+  lastLocationUpdate DateTime?
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  // Relationships
+  device             Device?
+  gpsLocations       GPSLocation[]
+
+  @@map("employees")
+}
+
+model Device {
+  id                 String    @id @default(uuid())
+  employeeId         String    @unique
+  imei               String?   @unique
+  platform           String?   // e.g. "iOS" or "Android"
+  deviceName         String?
+  batteryLevel       Int?
+  isGpsEnabled       Boolean   @default(true)
+  locationPermission String?   // e.g. "GRANTED", "DENIED"
+  lastSeen           DateTime? @default(now())
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  // Relationships
+  employee           Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@map("devices")
+}
+
+model GPSLocation {
+  id           String   @id @default(uuid())
+  employeeId   String
+  lat          Float
+  lng          Float
+  batteryLevel Int?
+  timestamp    DateTime @default(now())
+
+  // Relationships
+  employee     Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, timestamp])
+  @@map("gps_locations")
+}

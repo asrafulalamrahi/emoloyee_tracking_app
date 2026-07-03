@@ -1,0 +1,11 @@
+export const firebaseConfig = {
+  projectId: "lucid-psyche-3k8sk",
+  appId: "1:727681740012:web:a9377fba423354577809c9",
+  apiKey: "AIzaSyDeDWQg2iuUWWeOu6qUtaqy9umcOnXijsU",
+  authDomain: "lucid-psyche-3k8sk.firebaseapp.com",
+  storageBucket: "lucid-psyche-3k8sk.firebasestorage.app",
+  messagingSenderId: "727681740012",
+  measurementId: ""
+};
+
+export default firebaseConfig;

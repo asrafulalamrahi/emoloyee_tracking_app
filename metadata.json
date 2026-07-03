@@ -1,0 +1,10 @@
+{
+  "name": "MetroLogix: Employee Tracker",
+  "description": "A minimalist Minimum Viable Product (MVP) Employee Tracking System featuring real-time GIS map tracking of riders and merchandisers, live WebSockets, and field smartphone simulation.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
