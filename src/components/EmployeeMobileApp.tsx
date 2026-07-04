@@ -13,7 +13,6 @@ import {
   WifiOff, 
   Battery, 
   BatteryLow, 
-  Smartphone, 
   Play, 
   Square, 
   CheckCircle, 
@@ -22,9 +21,6 @@ import {
   MapPin, 
   Clock, 
   ShieldCheck, 
-  AlertTriangle,
-  UserCheck,
-  Send,
   Sliders,
   CheckSquare
 } from 'lucide-react';
@@ -58,7 +54,7 @@ export const EmployeeMobileApp: React.FC<EmployeeMobileAppProps> = ({
   const [selectedEmpId, setSelectedEmpId] = useState<string>('emp_1'); // Default Sarah or Alex
   const [gpsConsent, setGpsConsent] = useState<boolean>(true);
   const [consentModal, setConsentModal] = useState<boolean>(false);
-  const [showSettings, setShowSettings] = useState<boolean>(false);
+  const [, setShowSettings] = useState<boolean>(false);
   
   // Active Visit States
   const [activeVisitId, setActiveVisitId] = useState<string | null>(null);

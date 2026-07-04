@@ -1,36 +1,37 @@
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
   engineType = "library"
 }
 
+// ─── ADMIN USER ────────────────────────────────────────────────────────────────
 model User {
   id           String   @id @default(uuid())
   email        String   @unique
   passwordHash String
   name         String
-  role         String   @default("ADMIN") // e.g. "ADMIN" or "SUPER_ADMIN"
+  role         String   @default("ADMIN")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   @@map("users")
 }
 
+// ─── EMPLOYEE ──────────────────────────────────────────────────────────────────
 model Employee {
   id                 String   @id @default(uuid())
   employeeCode       String?  @unique
   email              String   @unique
   passwordHash       String
   name               String
-  role               String   @default("RIDER") // e.g. "RIDER" or "MERCHANDISER"
+  role               String   @default("RIDER")
   phone              String?
-  status             String   @default("OFFLINE") // "ONLINE" or "OFFLINE"
-  
-  // Last known coordinates (for quick retrieval)
+  status             String   @default("OFFLINE")
+
   lastLat            Float?
   lastLng            Float?
   lastLocationUpdate DateTime?
@@ -38,32 +39,35 @@ model Employee {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  // Relationships
   device             Device?
   gpsLocations       GPSLocation[]
+  visits             Visit[]
+  attendanceLogs     Attendance[]
+  notifications      Notification[]
 
   @@map("employees")
 }
 
+// ─── DEVICE ────────────────────────────────────────────────────────────────────
 model Device {
   id                 String    @id @default(uuid())
   employeeId         String    @unique
   imei               String?   @unique
-  platform           String?   // e.g. "iOS" or "Android"
+  platform           String?
   deviceName         String?
   batteryLevel       Int?
   isGpsEnabled       Boolean   @default(true)
-  locationPermission String?   // e.g. "GRANTED", "DENIED"
+  locationPermission String?
   lastSeen           DateTime? @default(now())
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
-  // Relationships
   employee           Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@map("devices")
 }
 
+// ─── GPS LOCATION ──────────────────────────────────────────────────────────────
 model GPSLocation {
   id           String   @id @default(uuid())
   employeeId   String
@@ -72,9 +76,105 @@ model GPSLocation {
   batteryLevel Int?
   timestamp    DateTime @default(now())
 
-  // Relationships
   employee     Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@index([employeeId, timestamp])
   @@map("gps_locations")
+}
+
+// ─── CUSTOMER ──────────────────────────────────────────────────────────────────
+model Customer {
+  id            String   @id @default(uuid())
+  name          String
+  address       String
+  lat           Float?
+  lng           Float?
+  contactPerson String?
+  phone         String?
+  email         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  visits        Visit[]
+
+  @@map("customers")
+}
+
+// ─── VISIT ─────────────────────────────────────────────────────────────────────
+model Visit {
+  id            String    @id @default(uuid())
+  employeeId    String
+  customerId    String
+  date          String    // ISO date string "YYYY-MM-DD"
+  status        String    @default("ASSIGNED") // ASSIGNED | ONGOING | VISITED | MISSED
+  arrivalTime   DateTime?
+  departureTime DateTime?
+  duration      Int?      // minutes
+  notes         String?
+  photoUrl      String?
+  signature     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  employee      Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  customer      Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, date])
+  @@map("visits")
+}
+
+// ─── ATTENDANCE ────────────────────────────────────────────────────────────────
+model Attendance {
+  id                  String    @id @default(uuid())
+  employeeId          String
+  date                String    // "YYYY-MM-DD"
+  clockIn             DateTime
+  clockOut            DateTime?
+  status              String    @default("PRESENT") // PRESENT | LATE | ABSENT
+  workingHours        Float     @default(0)
+  overtime            Float     @default(0)
+  validatedByGeofence Boolean   @default(false)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  employee            Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, date])
+  @@index([employeeId, date])
+  @@map("attendance")
+}
+
+// ─── GEOFENCE ──────────────────────────────────────────────────────────────────
+model Geofence {
+  id          String   @id @default(uuid())
+  name        String
+  type        String   @default("CIRCLE") // CIRCLE | POLYGON
+  centerLat   Float
+  centerLng   Float
+  radius      Float?   // meters, for CIRCLE type
+  polygonPath Json?    // array of {lat, lng} for POLYGON type
+  status      String   @default("ACTIVE") // ACTIVE | INACTIVE
+  targetTeams String[] // team names
+  enterCount  Int      @default(0)
+  exitCount   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("geofences")
+}
+
+// ─── NOTIFICATION ──────────────────────────────────────────────────────────────
+model Notification {
+  id           String   @id @default(uuid())
+  employeeId   String
+  employeeName String
+  type         String   // GPS_DISABLED | LOW_BATTERY | GEOFENCE_ENTER | GEOFENCE_EXIT | OFFLINE | SPEED_LIMIT
+  message      String
+  timestamp    DateTime @default(now())
+  read         Boolean  @default(false)
+
+  employee     Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, timestamp])
+  @@map("notifications")
 }

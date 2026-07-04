@@ -38,6 +38,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setLoading(false);
         return;
       }
+      // Demo mode: skip backend validation for demo tokens
+      if (token.startsWith('demo-token-')) {
+        setLoading(false);
+        return;
+      }
       try {
         const res = await fetch('/api/auth/me', {
           headers: {

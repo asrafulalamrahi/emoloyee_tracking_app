@@ -9,30 +9,55 @@ export const Login: React.FC = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  // Demo credentials (offline mode when backend is not running)
+  const DEMO_USERS: Record<string, { password: string; user: any; token: string }> = {
+    'admin@metrologix.com': {
+      password: 'admin123',
+      token: 'demo-token-admin',
+      user: { id: 'usr_1', email: 'admin@metrologix.com', name: 'Alex Morgan', role: 'Admin', companyId: 'company_1' }
+    },
+    'manager@metrologix.com': {
+      password: 'manager123',
+      token: 'demo-token-manager',
+      user: { id: 'usr_2', email: 'manager@metrologix.com', name: 'Sarah Chen', role: 'Manager', companyId: 'company_1' }
+    },
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
 
     try {
+      // Try real API first
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password }),
+        signal: AbortSignal.timeout(3000), // 3s timeout
       });
 
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || 'Login failed');
-      }
-
+      if (!res.ok) throw new Error(data.message || 'Login failed');
       login(data.accessToken, data.user);
+
     } catch (err: any) {
-      setError(err.message);
+      // Fallback: demo offline mode
+      const demo = DEMO_USERS[email.toLowerCase()];
+      if (demo && demo.password === password) {
+        login(demo.token, demo.user);
+        return;
+      }
+      if (err.name === 'TimeoutError' || err.message?.includes('fetch')) {
+        setError('Backend offline. Use demo credentials below.');
+      } else {
+        setError(err.message || 'Login failed');
+      }
     } finally {
       setIsLoading(false);
     }
   };
+
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center p-6">
@@ -97,7 +122,40 @@ export const Login: React.FC = () => {
           </button>
         </form>
 
-        <div className="mt-8 relative z-10 flex flex-col items-center gap-2 text-xs font-mono text-slate-600">
+        {/* Demo Credentials Panel */}
+        <div className="mt-6 relative z-10 bg-slate-950/80 border border-slate-800 rounded-xl p-4 space-y-2">
+          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Demo Access Credentials</p>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[11px] text-slate-300 font-mono">admin@metrologix.com</p>
+                <p className="text-[10px] text-slate-600 font-mono">Password: admin123</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setEmail('admin@metrologix.com'); setPassword('admin123'); }}
+                className="text-[10px] bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 border border-blue-600/30 px-2.5 py-1 rounded-lg font-bold transition-all"
+              >
+                Quick Fill
+              </button>
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[11px] text-slate-300 font-mono">manager@metrologix.com</p>
+                <p className="text-[10px] text-slate-600 font-mono">Password: manager123</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setEmail('manager@metrologix.com'); setPassword('manager123'); }}
+                className="text-[10px] bg-purple-600/20 hover:bg-purple-600/40 text-purple-400 border border-purple-600/30 px-2.5 py-1 rounded-lg font-bold transition-all"
+              >
+                Quick Fill
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 relative z-10 flex flex-col items-center gap-2 text-xs font-mono text-slate-600">
           <p>AUTHORIZED PERSONNEL ONLY</p>
           <div className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />

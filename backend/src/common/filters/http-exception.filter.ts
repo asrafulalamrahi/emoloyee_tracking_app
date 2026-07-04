@@ -24,8 +24,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     const message =
       exception instanceof HttpException
-        ? exception.getResponse()
+        ? (exception.getResponse() as unknown)
         : 'Internal server error';
+
+    const messageValue =
+      exception instanceof HttpException
+        ? (exception.getResponse() as any)
+        : message;
 
     // Log the exception details
     if (status === HttpStatus.INTERNAL_SERVER_ERROR) {

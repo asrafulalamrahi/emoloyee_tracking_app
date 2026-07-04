@@ -1,24 +1,27 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Employee, 
+  EmployeeStatus, 
   Geofence, 
+  GeofenceType, 
   Customer, 
   Visit, 
+  VisitStatus, 
   Attendance, 
+  AttendanceStatus, 
   Notification, 
-  EmployeeStatus, 
   NotificationType,
-  Coordinates,
-  GeofenceType
+  Coordinates
 } from './types';
 import { 
-  INITIAL_EMPLOYEES, 
-  INITIAL_GEOFENCES, 
-  INITIAL_CUSTOMERS, 
-  INITIAL_VISITS, 
-  INITIAL_ATTENDANCE, 
-  INITIAL_NOTIFICATIONS 
-} from './data';
+  Compass, 
+  LayoutDashboard, 
+  TrendingUp, 
+  Smartphone, 
+  Cpu, 
+  Bell, 
+  LogOut 
+} from 'lucide-react';
 import { AdminDashboard } from './components/AdminDashboard';
 import { AnalyticsCharts } from './components/AnalyticsCharts';
 import { EmployeeMobileApp } from './components/EmployeeMobileApp';
@@ -26,39 +29,46 @@ import { SystemArchitecture } from './components/SystemArchitecture';
 import { Login } from './components/auth/Login';
 import { useAuth } from './contexts/AuthContext';
 import { 
-  Sparkles, 
-  ShieldAlert, 
-  Smartphone, 
-  LayoutDashboard, 
-  TrendingUp, 
-  Cpu, 
-  MapPin, 
-  Bell, 
-  Check, 
-  Trash2, 
-  Compass,
-  AlertTriangle,
-  LogOut
-} from 'lucide-react';
+  INITIAL_EMPLOYEES, 
+  INITIAL_GEOFENCES, 
+  INITIAL_CUSTOMERS, 
+  INITIAL_VISITS, 
+  INITIAL_ATTENDANCE, 
+  INITIAL_NOTIFICATIONS,
+  HISTORICAL_ROUTES
+} from './data';
+import { io, Socket } from 'socket.io-client';
 
-// Distance utility mapping (flat projection for SF size)
+// Helper for distance calculations (haversine)
 const getDistanceMeters = (c1: Coordinates, c2: Coordinates) => {
-  const dLat = (c1.lat - c2.lat) * 111139; // approx meters per degree lat
-  const dLng = (c1.lng - c2.lng) * 111139 * Math.cos(c1.lat * Math.PI / 180);
-  return Math.sqrt(dLat * dLat + dLng * dLng);
+  const R = 6371e3; // metres
+  const phi1 = (c1.lat * Math.PI) / 180;
+  const phi2 = (c2.lat * Math.PI) / 180;
+  const deltaPhi = ((c2.lat - c1.lat) * Math.PI) / 180;
+  const deltaLambda = ((c2.lng - c1.lng) * Math.PI) / 180;
+
+  const a =
+    Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+    Math.cos(phi1) * Math.cos(phi2) * Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c; // in metres
 };
 
 const App: React.FC = () => {
-  const { user, loading, logout } = useAuth();
+  const { user, token, loading, logout } = useAuth();
 
   // Global Database state
   const [employees, setEmployees] = useState<Employee[]>(INITIAL_EMPLOYEES);
-
   const [geofences, setGeofences] = useState<Geofence[]>(INITIAL_GEOFENCES);
   const [customers, setCustomers] = useState<Customer[]>(INITIAL_CUSTOMERS);
   const [visits, setVisits] = useState<Visit[]>(INITIAL_VISITS);
   const [attendanceLogs, setAttendanceLogs] = useState<Attendance[]>(INITIAL_ATTENDANCE);
   const [notifications, setNotifications] = useState<Notification[]>(INITIAL_NOTIFICATIONS);
+
+  // Connection mode state
+  const [useBackend, setUseBackend] = useState<boolean>(false);
+  const socketRef = useRef<Socket | null>(null);
 
   // Active UI Navigation state
   const [currentView, setCurrentView] = useState<'admin' | 'analytics' | 'mobile' | 'architecture'>('admin');
@@ -66,8 +76,153 @@ const App: React.FC = () => {
   const [showNotificationPanel, setShowNotificationPanel] = useState<boolean>(false);
 
   // Track geofence state transitions to prevent multiple trigger firings
-  // Map of EmployeeId -> Set of GeofenceIds they are currently inside
   const employeeInsideGeofences = useRef<Record<string, Set<string>>>({});
+
+  // 1. Fetch data from backend API if available, otherwise fall back to mock data
+  useEffect(() => {
+    if (!user) return;
+
+    const loadBackendData = async () => {
+      try {
+        const headers: HeadersInit = { 'Content-Type': 'application/json' };
+        if (token && !token.startsWith('demo-token-')) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        // Check backend availability
+        const empRes = await fetch('/api/employees', { headers, signal: AbortSignal.timeout(3000) });
+        if (empRes.ok) {
+          const empsData = await empRes.ok ? await empRes.json() : [];
+          if (empsData && empsData.length > 0) {
+            // Map DB entities to UI state structure
+            const mappedEmps = empsData.map((emp: any) => {
+              const matchedMock = INITIAL_EMPLOYEES.find(e => e.email === emp.email) || INITIAL_EMPLOYEES[0];
+              return {
+                ...matchedMock,
+                id: emp.id,
+                name: emp.name,
+                email: emp.email,
+                role: emp.role,
+                phone: emp.phone || matchedMock.phone,
+                status: emp.status as EmployeeStatus,
+                battery: emp.device?.batteryLevel ?? matchedMock.battery,
+                gpsAccuracy: emp.device?.isGpsEnabled ? 4.2 : 0,
+                coords: emp.lastLat && emp.lastLng ? { lat: emp.lastLat, lng: emp.lastLng } : matchedMock.coords,
+                deviceName: emp.device?.deviceName || matchedMock.deviceName,
+                devicePlatform: emp.device?.platform || matchedMock.devicePlatform,
+                deviceApprovalStatus: 'APPROVED',
+                internetStatus: emp.status === 'OFFLINE' ? 'offline' : 'online',
+                lastUpdate: emp.lastLocationUpdate || new Date().toISOString()
+              };
+            });
+            setEmployees(mappedEmps);
+          }
+
+          // Customers
+          const custRes = await fetch('/api/customers', { headers });
+          if (custRes.ok) {
+            const custs = await custRes.json();
+            if (custs.length > 0) {
+              setCustomers(custs.map((c: any) => ({
+                id: c.id,
+                name: c.name,
+                address: c.address,
+                coords: { lat: c.lat || 37.7749, lng: c.lng || -122.4194 },
+                contactPerson: c.contactPerson || '',
+                phone: c.phone || '',
+                email: c.email || ''
+              })));
+            }
+          }
+
+          // Geofences
+          const geoRes = await fetch('/api/geofences', { headers });
+          if (geoRes.ok) {
+            const geos = await geoRes.json();
+            if (geos.length > 0) {
+              setGeofences(geos.map((g: any) => ({
+                id: g.id,
+                name: g.name,
+                type: g.type as GeofenceType,
+                coords: { lat: g.centerLat, lng: g.centerLng },
+                radius: g.radius,
+                polygonPath: g.polygonPath || undefined,
+                status: g.status,
+                targetTeams: g.targetTeams,
+                enterCount: g.enterCount,
+                exitCount: g.exitCount
+              })));
+            }
+          }
+
+          // Visits
+          const visitRes = await fetch('/api/visits', { headers });
+          if (visitRes.ok) {
+            const vsts = await visitRes.json();
+            if (vsts.length > 0) setVisits(vsts);
+          }
+
+          // Attendance
+          const attRes = await fetch('/api/attendance', { headers });
+          if (attRes.ok) {
+            const atts = await attRes.json();
+            if (atts.length > 0) setAttendanceLogs(atts);
+          }
+
+          // Notifications
+          const notifRes = await fetch('/api/notifications', { headers });
+          if (notifRes.ok) {
+            const notifs = await notifRes.json();
+            if (notifs.length > 0) setNotifications(notifs);
+          }
+
+          setUseBackend(true);
+          console.log('Successfully connected to NestJS backend database API.');
+        }
+      } catch (err) {
+        console.warn('Backend server is offline or database URL is not configured. Running in UI Demo sandbox.', err);
+      }
+    };
+
+    loadBackendData();
+  }, [user, token]);
+
+  // 2. Setup WebSocket connection for live telemetry feeds
+  useEffect(() => {
+    if (!user || !useBackend) return;
+
+    const socket = io('/', {
+      transports: ['websocket', 'polling'],
+      autoConnect: true
+    });
+
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      console.log('Connected to real-time GIS telemetry WebSocket pipeline.');
+      socket.emit('subscribe_locations');
+    });
+
+    socket.on('location_update', (data: any) => {
+      console.log('WebSocket telemetry point received:', data);
+      setEmployees(prev => prev.map(emp => {
+        if (emp.id === data.employeeId) {
+          return {
+            ...emp,
+            status: data.status as EmployeeStatus,
+            coords: { lat: data.lat, lng: data.lng },
+            battery: data.batteryLevel ?? emp.battery,
+            lastUpdate: data.timestamp
+          };
+        }
+        return emp;
+      }));
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [user, useBackend]);
 
   // Initialize tracking inside sets on start
   useEffect(() => {
@@ -87,7 +242,7 @@ const App: React.FC = () => {
   }, []);
 
   // System notification builder helper
-  const triggerNotification = (type: string, message: string, empId: string) => {
+  const triggerNotification = async (type: string, message: string, empId: string) => {
     const emp = employees.find(e => e.id === empId);
     const newNotif: Notification = {
       id: `notif_${Date.now()}`,
@@ -98,11 +253,205 @@ const App: React.FC = () => {
       timestamp: new Date().toISOString(),
       read: false
     };
+
     setNotifications(prev => [newNotif, ...prev]);
+
+    if (useBackend) {
+      try {
+        const headers: HeadersInit = { 'Content-Type': 'application/json' };
+        if (token && !token.startsWith('demo-token-')) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        await fetch('/api/notifications', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(newNotif)
+        });
+      } catch (err) {
+        console.error('Failed to sync notification to database:', err);
+      }
+    }
+  };
+
+  // Sync state modifications to backend database if active
+  const handleUpdateEmployee = async (updated: Employee) => {
+    setEmployees(prev => prev.map(e => e.id === updated.id ? updated : e));
+
+    if (useBackend) {
+      try {
+        const headers: HeadersInit = { 'Content-Type': 'application/json' };
+        if (token && !token.startsWith('demo-token-')) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        
+        // Log telemetry event
+        await fetch('/api/locations', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            employeeId: updated.id,
+            lat: updated.coords.lat,
+            lng: updated.coords.lng,
+            batteryLevel: updated.battery,
+            deviceName: updated.deviceName,
+            platform: updated.devicePlatform,
+            isGpsEnabled: updated.gpsEnabled,
+            locationPermission: updated.locationPermission
+          })
+        });
+
+        // Update employee status
+        await fetch(`/api/employees/${updated.id}`, {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify({
+            status: updated.status,
+            phone: updated.phone,
+            name: updated.name,
+            role: updated.role
+          })
+        });
+      } catch (err) {
+        console.error('Telemetry logging fail:', err);
+      }
+    }
+  };
+
+  const handleAddVisit = async (visit: Visit) => {
+    setVisits(prev => [visit, ...prev]);
+    if (useBackend) {
+      try {
+        const headers: HeadersInit = { 'Content-Type': 'application/json' };
+        if (token && !token.startsWith('demo-token-')) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        await fetch('/api/visits', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(visit)
+        });
+      } catch (err) {
+        console.error('Failed to create visit:', err);
+      }
+    }
+  };
+
+  const handleUpdateVisit = async (updated: Visit) => {
+    setVisits(prev => prev.map(v => v.id === updated.id ? updated : v));
+    if (useBackend) {
+      try {
+        const headers: HeadersInit = { 'Content-Type': 'application/json' };
+        if (token && !token.startsWith('demo-token-')) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        await fetch(`/api/visits/${updated.id}`, {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify(updated)
+        });
+      } catch (err) {
+        console.error('Failed to update visit:', err);
+      }
+    }
+  };
+
+  const handleAddAttendance = async (log: Attendance) => {
+    setAttendanceLogs(prev => [log, ...prev]);
+    if (useBackend) {
+      try {
+        const headers: HeadersInit = { 'Content-Type': 'application/json' };
+        if (token && !token.startsWith('demo-token-')) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        await fetch('/api/attendance/clock-in', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ employeeId: log.employeeId, date: log.date })
+        });
+      } catch (err) {
+        console.error('Failed to sync clock-in:', err);
+      }
+    }
+  };
+
+  const handleUpdateAttendance = async (updated: Attendance) => {
+    setAttendanceLogs(prev => prev.map(a => a.id === updated.id ? updated : a));
+    if (useBackend) {
+      try {
+        const headers: HeadersInit = { 'Content-Type': 'application/json' };
+        if (token && !token.startsWith('demo-token-')) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        await fetch('/api/attendance/clock-out', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ employeeId: updated.employeeId, date: updated.date })
+        });
+      } catch (err) {
+        console.error('Failed to sync clock-out:', err);
+      }
+    }
+  };
+
+  const handleAddGeofence = async (geo: Geofence) => {
+    setGeofences(prev => [geo, ...prev]);
+    if (useBackend) {
+      try {
+        const headers: HeadersInit = { 'Content-Type': 'application/json' };
+        if (token && !token.startsWith('demo-token-')) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        await fetch('/api/geofences', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            name: geo.name,
+            type: geo.type,
+            centerLat: geo.coords.lat,
+            centerLng: geo.coords.lng,
+            radius: geo.radius,
+            polygonPath: geo.polygonPath,
+            status: geo.status,
+            targetTeams: geo.targetTeams
+          })
+        });
+      } catch (err) {
+        console.error('Failed to create geofence:', err);
+      }
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    if (useBackend) {
+      try {
+        const headers: HeadersInit = { 'Content-Type': 'application/json' };
+        if (token && !token.startsWith('demo-token-')) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        await fetch('/api/notifications/read-all', { method: 'PUT', headers });
+      } catch (err) {
+        console.error('Failed to sync notification updates:', err);
+      }
+    }
+  };
+
+  const handleClearNotifications = async () => {
+    setNotifications([]);
+    if (useBackend) {
+      try {
+        const headers: HeadersInit = { 'Content-Type': 'application/json' };
+        if (token && !token.startsWith('demo-token-')) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        await fetch('/api/notifications/clear', { method: 'DELETE', headers });
+      } catch (err) {
+        console.error('Failed to clear notifications:', err);
+      }
+    }
   };
 
   // Live GPS Simulation Loop
-  // Updates traveling employees every 6 seconds to show dynamic dashboard updates
   useEffect(() => {
     const simulationInterval = setInterval(() => {
       setEmployees(prevEmployees => {
@@ -131,28 +480,22 @@ const App: React.FC = () => {
               const isInside = distance <= geo.radius;
 
               if (isInside && !wasInside) {
-                // Entered!
                 insideSet.add(geo.id);
                 employeeInsideGeofences.current[emp.id] = insideSet;
                 
-                // Increment enter counts
                 setGeofences(prevGeos => prevGeos.map(g => g.id === geo.id ? { ...g, enterCount: g.enterCount + 1 } : g));
 
-                // Notification
                 triggerNotification(
                   'GEOFENCE_ENTER',
                   `GPS verified: ${emp.name} entered corporate geofence "${geo.name}" traveling at ${emp.speed} km/h.`,
                   emp.id
                 );
               } else if (!isInside && wasInside) {
-                // Exited!
                 insideSet.delete(geo.id);
                 employeeInsideGeofences.current[emp.id] = insideSet;
 
-                // Increment exit counts
                 setGeofences(prevGeos => prevGeos.map(g => g.id === geo.id ? { ...g, exitCount: g.exitCount + 1 } : g));
 
-                // Notification
                 triggerNotification(
                   'GEOFENCE_EXIT',
                   `GPS verified: ${emp.name} left corporate geofence "${geo.name}" heading downtown.`,
@@ -168,24 +511,26 @@ const App: React.FC = () => {
           else if (newCoords.lat > 37.7700) currentAddress = 'Market Street Corridor, San Francisco, CA';
           else currentAddress = 'Mission District Corridor, San Francisco, CA';
 
-          return {
+          const updatedEmp = {
             ...emp,
             coords: newCoords,
             totalDistance: emp.totalDistance + distanceIncrement,
             currentAddress,
             lastUpdate: new Date().toISOString()
           };
+
+          // Auto-sync coordinates to database if running with backend
+          if (useBackend) {
+            handleUpdateEmployee(updatedEmp);
+          }
+
+          return updatedEmp;
         });
       });
     }, 6000);
 
     return () => clearInterval(simulationInterval);
-  }, [geofences]);
-
-  // Mark all notifications as read
-  const handleMarkAllRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-  };
+  }, [geofences, useBackend]);
 
   if (loading) {
     return (
@@ -205,7 +550,6 @@ const App: React.FC = () => {
       
       {/* 1. Global Navigation Navbar */}
       <header className="bg-slate-900/80 border-b border-slate-850 sticky top-0 z-40 backdrop-blur-md px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
-
         
         {/* Logo and title */}
         <div className="flex items-center gap-3">
@@ -215,13 +559,17 @@ const App: React.FC = () => {
           <div>
             <h1 className="text-sm font-bold text-white tracking-tight flex items-center gap-1.5">
               MetroLogix GIS GPS Hub
-              <span className="text-[9.5px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-mono uppercase tracking-wider font-bold">Secure</span>
+              {useBackend ? (
+                <span className="text-[9.5px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-mono uppercase tracking-wider font-bold">Live DB Connected</span>
+              ) : (
+                <span className="text-[9.5px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded-full font-mono uppercase tracking-wider font-bold">UI Sandbox</span>
+              )}
             </h1>
             <p className="text-[11px] text-slate-400 mt-0.5">Corporate Field Logistics Telemetry & Audit Engine</p>
           </div>
         </div>
 
-        {/* View Switcher Controls (Segments) */}
+        {/* View Switcher Controls */}
         <div className="flex bg-slate-950 border border-slate-800 rounded-xl p-1 shrink-0">
           <button
             onClick={() => { setCurrentView('admin'); setSelectedEmployeeId(null); }}
@@ -272,7 +620,7 @@ const App: React.FC = () => {
           </button>
         </div>
 
-        {/* Right Nav Options: Notification bell & health */}
+        {/* Right Nav Options */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 mr-2 border-r border-slate-800 pr-4">
             <div className="flex flex-col items-end hidden md:flex">
@@ -319,10 +667,10 @@ const App: React.FC = () => {
             notifications={notifications}
             selectedEmployeeId={selectedEmployeeId}
             onSelectEmployee={setSelectedEmployeeId}
-            onAddGeofence={(geo) => setGeofences(prev => [geo, ...prev])}
+            onAddGeofence={handleAddGeofence}
             onAddNotification={(n) => triggerNotification(n.type, n.message, n.empId)}
-            onClearNotifications={() => setNotifications([])}
-            onUpdateEmployee={(updated) => setEmployees(prev => prev.map(e => e.id === updated.id ? updated : e))}
+            onClearNotifications={handleClearNotifications}
+            onUpdateEmployee={handleUpdateEmployee}
           />
         )}
 
@@ -339,11 +687,11 @@ const App: React.FC = () => {
             visits={visits}
             customers={customers}
             attendanceLogs={attendanceLogs}
-            onUpdateEmployee={(updated) => setEmployees(prev => prev.map(e => e.id === updated.id ? updated : e))}
-            onAddVisit={(visit) => setVisits(prev => [visit, ...prev])}
-            onUpdateVisit={(updated) => setVisits(prev => prev.map(v => v.id === updated.id ? updated : v))}
-            onAddAttendance={(log) => setAttendanceLogs(prev => [log, ...prev])}
-            onUpdateAttendance={(updated) => setAttendanceLogs(prev => prev.map(a => a.id === updated.id ? updated : a))}
+            onUpdateEmployee={handleUpdateEmployee}
+            onAddVisit={handleAddVisit}
+            onUpdateVisit={handleUpdateVisit}
+            onAddAttendance={handleAddAttendance}
+            onUpdateAttendance={handleUpdateAttendance}
             onAddNotification={(n) => triggerNotification(n.type, n.message, n.empId)}
           />
         )}
@@ -368,7 +716,7 @@ const App: React.FC = () => {
                 Mark all read
               </button>
               <button 
-                onClick={() => setNotifications([])}
+                onClick={handleClearNotifications}
                 className="text-[10px] text-rose-400 hover:text-rose-300 font-bold"
               >
                 Clear all

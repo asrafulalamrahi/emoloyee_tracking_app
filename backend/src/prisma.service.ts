@@ -6,10 +6,13 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   public client: PrismaClient;
 
   constructor() {
-    let url = process.env.DATABASE_URL || 'file:../dev.db';
-    if (!url.startsWith('file:')) {
-      url = 'file:../dev.db';
+    const url = process.env.DATABASE_URL;
+    if (!url) {
+      throw new Error(
+        'DATABASE_URL is not set. Neon PostgreSQL connection is required. No SQLite fallback is allowed.'
+      );
     }
+
     this.client = new PrismaClient({
       datasources: {
         db: {
