@@ -14,7 +14,7 @@ import {
 } from './types';
 
 // Map configuration
-export const MAP_CENTER = { lat: 37.7749, lng: -122.4194 }; // San Francisco
+export const MAP_CENTER = { lat: 22.3244, lng: 91.8122 }; // Chittagong, Bangladesh
 export const MAP_ZOOM = 13;
 
 export const INITIAL_EMPLOYEES: Employee[] = [

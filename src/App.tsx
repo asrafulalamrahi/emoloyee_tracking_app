@@ -112,7 +112,15 @@ const App: React.FC = () => {
                 devicePlatform: emp.device?.platform || matchedMock.devicePlatform,
                 deviceApprovalStatus: 'APPROVED',
                 internetStatus: emp.status === 'OFFLINE' ? 'offline' : 'online',
-                lastUpdate: emp.lastLocationUpdate || new Date().toISOString()
+                lastUpdate: emp.lastLocationUpdate || new Date().toISOString(),
+                department: emp.department || matchedMock.department,
+                designation: emp.designation || matchedMock.designation,
+                branch: emp.branch || matchedMock.branch,
+                factory: emp.factory || matchedMock.factory,
+                region: emp.region || matchedMock.region,
+                avatar: emp.photoUrl || emp.avatar || matchedMock.avatar,
+                qrCode: emp.qrCode || matchedMock.qrCode,
+                employeeCode: emp.employeeCode || matchedMock.employeeCode
               };
             });
             setEmployees(mappedEmps);
@@ -300,7 +308,7 @@ const App: React.FC = () => {
           })
         });
 
-        // Update employee status
+        // Update employee status and details
         await fetch(`/api/employees/${updated.id}`, {
           method: 'PUT',
           headers,
@@ -308,12 +316,137 @@ const App: React.FC = () => {
             status: updated.status,
             phone: updated.phone,
             name: updated.name,
-            role: updated.role
+            role: updated.role,
+            department: updated.department,
+            designation: updated.designation,
+            branch: updated.branch,
+            factory: updated.factory,
+            region: updated.region,
+            photoUrl: updated.avatar,
+            qrCode: updated.qrCode,
+            employeeCode: updated.employeeCode,
+            deviceName: updated.deviceName,
+            platform: updated.devicePlatform
           })
         });
       } catch (err) {
         console.error('Telemetry logging fail:', err);
       }
+    }
+  };
+
+  const handleAddEmployee = async (newEmpData: any) => {
+    if (useBackend) {
+      try {
+        const headers: HeadersInit = { 'Content-Type': 'application/json' };
+        if (token && !token.startsWith('demo-token-')) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        const res = await fetch('/api/employees', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            name: newEmpData.name,
+            email: newEmpData.email,
+            password: newEmpData.password || 'rider123',
+            phone: newEmpData.phone,
+            role: newEmpData.role || 'RIDER',
+            employeeCode: newEmpData.employeeCode || newEmpData.code,
+            department: newEmpData.department || 'Operations',
+            designation: newEmpData.designation || 'Staff',
+            branch: newEmpData.branch || 'Chittagong',
+            factory: newEmpData.factory || 'Steel Plant',
+            region: newEmpData.region || 'Chattogram',
+            photoUrl: newEmpData.photoUrl || newEmpData.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+            deviceName: newEmpData.deviceName,
+            platform: newEmpData.platform
+          })
+        });
+        if (res.ok) {
+          const emp = await res.json();
+          const matchedMock = INITIAL_EMPLOYEES[0];
+          const newMapped: Employee = {
+            ...matchedMock,
+            id: emp.id,
+            name: emp.name,
+            email: emp.email,
+            role: emp.role,
+            phone: emp.phone || '',
+            status: emp.status as EmployeeStatus,
+            battery: 100,
+            gpsAccuracy: 0,
+            coords: { lat: 22.3244, lng: 91.8122 },
+            deviceName: emp.device?.deviceName || 'Pending Binding',
+            devicePlatform: emp.device?.platform || 'Android',
+            deviceApprovalStatus: 'NOT_ACTIVATED',
+            internetStatus: 'offline',
+            lastUpdate: new Date().toISOString(),
+            department: emp.department || 'Operations',
+            designation: emp.designation || 'Staff',
+            branch: emp.branch || 'Chittagong',
+            factory: emp.factory || 'Steel Plant',
+            region: emp.region || 'Chattogram',
+            avatar: emp.photoUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+            qrCode: emp.qrCode || `AKG-EMP-${emp.employeeCode}`,
+            employeeCode: emp.employeeCode,
+          };
+          setEmployees(prev => [...prev, newMapped]);
+        } else {
+          const errData = await res.json();
+          alert(`Failed to add employee: ${errData.message || 'Unknown error'}`);
+        }
+      } catch (err) {
+        console.error('Failed to add employee:', err);
+      }
+    } else {
+      const demoId = `emp_${Date.now()}`;
+      const newMapped: Employee = {
+        ...INITIAL_EMPLOYEES[0],
+        id: demoId,
+        name: newEmpData.name,
+        email: newEmpData.email,
+        role: newEmpData.role || 'RIDER',
+        phone: newEmpData.phone || '',
+        department: newEmpData.department || 'Operations',
+        designation: newEmpData.designation || 'Staff',
+        branch: newEmpData.branch || 'Chittagong',
+        factory: newEmpData.factory || 'Steel Plant',
+        region: newEmpData.region || 'Chattogram',
+        avatar: newEmpData.photoUrl || newEmpData.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+        qrCode: `AKG-EMP-${newEmpData.employeeCode || 'DEMO'}`,
+        employeeCode: newEmpData.employeeCode,
+        deviceName: newEmpData.deviceName || 'Demo Device',
+        devicePlatform: newEmpData.platform || 'Android',
+        deviceApprovalStatus: 'NOT_ACTIVATED',
+        status: EmployeeStatus.OFFLINE,
+        coords: { lat: 22.3244, lng: 91.8122 }
+      };
+      setEmployees(prev => [...prev, newMapped]);
+    }
+  };
+
+  const handleDeleteEmployee = async (id: string) => {
+    if (useBackend) {
+      try {
+        const headers: HeadersInit = { 'Content-Type': 'application/json' };
+        if (token && !token.startsWith('demo-token-')) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        const res = await fetch(`/api/employees/${id}`, {
+          method: 'DELETE',
+          headers
+        });
+        if (res.ok) {
+          setEmployees(prev => prev.filter(e => e.id !== id));
+        } else {
+          const errData = await res.json();
+          alert(`Failed to delete employee: ${errData.message || 'Unknown error'}`);
+        }
+      } catch (err) {
+        console.error('Failed to delete employee:', err);
+      }
+    } else {
+      setEmployees(prev => prev.filter(e => e.id !== id));
     }
   };
 
@@ -671,6 +804,8 @@ const App: React.FC = () => {
             onAddNotification={(n) => triggerNotification(n.type, n.message, n.empId)}
             onClearNotifications={handleClearNotifications}
             onUpdateEmployee={handleUpdateEmployee}
+            onAddEmployee={handleAddEmployee}
+            onDeleteEmployee={handleDeleteEmployee}
           />
         )}
 

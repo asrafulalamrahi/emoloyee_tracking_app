@@ -16,15 +16,24 @@ export class EmployeeService {
     }
 
     const passwordHash = await bcrypt.hash(dto.password || 'rider123', 10);
+    const code = dto.employeeCode || dto.code || `AKG-${Math.floor(100000 + Math.random() * 900000)}`;
 
     const employee = await this.prisma.client.employee.create({
       data: {
         email: dto.email,
         name: dto.name,
+        employeeCode: code,
         role: dto.role || 'RIDER',
         phone: dto.phone,
         passwordHash,
         status: 'OFFLINE',
+        department: dto.department || 'Operations',
+        designation: dto.designation || 'Staff',
+        branch: dto.branch || 'Chittagong',
+        factory: dto.factory || 'Steel Plant',
+        region: dto.region || 'Chattogram',
+        photoUrl: dto.photoUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+        qrCode: dto.qrCode || `AKG-EMP-${code}`,
       },
     });
 
@@ -32,8 +41,8 @@ export class EmployeeService {
     await this.prisma.client.device.create({
       data: {
         employeeId: employee.id,
-        deviceName: `${dto.name}'s Device`,
-        platform: 'Android',
+        deviceName: dto.deviceName || `${dto.name}'s Device`,
+        platform: dto.platform || 'Android',
         isGpsEnabled: true,
       },
     });
@@ -81,9 +90,17 @@ export class EmployeeService {
     const updateData: any = {
       email: dto.email,
       name: dto.name,
+      employeeCode: dto.employeeCode || dto.code,
       role: dto.role,
       phone: dto.phone,
       status: dto.status,
+      department: dto.department,
+      designation: dto.designation,
+      branch: dto.branch,
+      factory: dto.factory,
+      region: dto.region,
+      photoUrl: dto.photoUrl,
+      qrCode: dto.qrCode,
     };
 
     if (dto.password) {

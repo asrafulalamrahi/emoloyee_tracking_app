@@ -41,10 +41,17 @@ export interface Coordinates {
 export interface Employee {
   id: string;
   name: string;
+  email?: string;
   avatar: string;
   role: string;
   team: string;
   department: string;
+  designation?: string;
+  branch?: string;
+  factory?: string;
+  region?: string;
+  qrCode?: string;
+  employeeCode?: string;
   phone: string;
   status: EmployeeStatus;
   battery: number;

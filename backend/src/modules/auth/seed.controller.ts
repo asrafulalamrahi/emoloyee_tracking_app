@@ -26,17 +26,16 @@ export class SeedController {
       const empPasswordHash = await bcrypt.hash('rider123', 10);
 
       console.log('Seeding admin users...');
-      // Admin Users
       await this.prisma.client.user.createMany({
         data: [
           {
-            email: 'admin@metrologix.com',
+            email: 'admin@abulkhairgroup.com',
             passwordHash,
             name: 'Alex Morgan',
             role: 'ADMIN',
           },
           {
-            email: 'manager@metrologix.com',
+            email: 'manager@abulkhairgroup.com',
             passwordHash,
             name: 'Sarah Chen',
             role: 'MANAGER',
@@ -44,140 +43,145 @@ export class SeedController {
         ]
       });
 
-      console.log('Seeding geofences...');
-      // Geofences
+      console.log('Seeding geofences for Abul Khair Group...');
       await this.prisma.client.geofence.createMany({
         data: [
           {
             id: 'geo_1',
-            name: 'MetroLogix HQ Office',
+            name: 'AKG Chittagong Corporate Office',
             type: 'CIRCLE',
-            centerLat: 37.7946,
-            centerLng: -122.4014,
-            radius: 120,
+            centerLat: 22.3244,
+            centerLng: 91.8122,
+            radius: 150,
             status: 'ACTIVE',
-            targetTeams: ['HQ Compliance', 'Delivery Team Alpha', 'SFC Support Team C'],
+            targetTeams: ['Logistics Team', 'Sales Team Alpha', 'Maintenance Team A'],
             enterCount: 24,
             exitCount: 21,
           },
           {
             id: 'geo_2',
-            name: 'North SOMA Logistics Hub',
+            name: 'Madambibirhat Steel Plant (Chattogram)',
             type: 'CIRCLE',
-            centerLat: 37.7812,
-            centerLng: -122.4029,
-            radius: 250,
+            centerLat: 22.4342,
+            centerLng: 91.7348,
+            radius: 500,
             status: 'ACTIVE',
-            targetTeams: ['Delivery Team Alpha'],
+            targetTeams: ['Logistics Team'],
             enterCount: 41,
             exitCount: 39,
           },
           {
             id: 'geo_3',
-            name: 'Downtown Financial Restricted Zone',
+            name: 'AKG Dhaka Corporate Office (Banani)',
             type: 'POLYGON',
-            centerLat: 37.7915,
-            centerLng: -122.4012,
+            centerLat: 23.7937,
+            centerLng: 90.4067,
             polygonPath: [
-              { lat: 37.7955, lng: -122.4045 },
-              { lat: 37.7968, lng: -122.3995 },
-              { lat: 37.7895, lng: -122.3952 },
-              { lat: 37.7878, lng: -122.4015 }
+              { lat: 23.7955, lng: 90.4045 },
+              { lat: 23.7968, lng: 90.4095 },
+              { lat: 23.7895, lng: 90.4112 },
+              { lat: 23.7878, lng: 90.4035 }
             ],
             status: 'ACTIVE',
-            targetTeams: ['Delivery Team Alpha', 'West Coast Enterprise Sales'],
+            targetTeams: ['Logistics Team', 'Enterprise Sales Dhaka'],
             enterCount: 12,
             exitCount: 11,
           },
           {
             id: 'geo_4',
-            name: 'Twin Peaks No-Idle Zone',
+            name: 'AKG Foods Depot (Tongi)',
             type: 'POLYGON',
-            centerLat: 37.7544,
-            centerLng: -122.4477,
+            centerLat: 23.8824,
+            centerLng: 90.4005,
             polygonPath: [
-              { lat: 37.7580, lng: -122.4510 },
-              { lat: 37.7580, lng: -122.4430 },
-              { lat: 37.7500, lng: -122.4430 },
-              { lat: 37.7500, lng: -122.4510 }
+              { lat: 23.8850, lng: 90.3980 },
+              { lat: 23.8850, lng: 90.4030 },
+              { lat: 23.8790, lng: 90.4030 },
+              { lat: 23.8790, lng: 90.3980 }
             ],
             status: 'ACTIVE',
-            targetTeams: ['SFC Support Team C', 'Technical Support West'],
+            targetTeams: ['Logistics Team', 'Technical Support'],
             enterCount: 4,
             exitCount: 4,
           }
         ]
       });
 
-      console.log('Seeding customers...');
-      // Customers
+      console.log('Seeding customers (Distribution Points)...');
       await this.prisma.client.customer.createMany({
         data: [
           {
             id: 'cust_1',
-            name: 'Salesforce Tower (Global Tech Inc)',
-            address: '415 Mission St, San Francisco, CA',
-            lat: 37.7897,
-            lng: -122.3972,
-            contactPerson: 'Marc Benioff',
-            phone: '+1 (555) 444-1111',
-            email: 'mbenioff@globaltech.com'
+            name: 'Agrabad Distribution Hub',
+            address: 'Agrabad Access Rd, Chittagong',
+            lat: 22.3235,
+            lng: 91.8085,
+            contactPerson: 'Niaz Ahmed',
+            phone: '01711223344',
+            email: 'niaz@agrabadretail.com'
           },
           {
             id: 'cust_2',
-            name: 'Uber HQ (RideShare Corp)',
-            address: '1515 3rd St, San Francisco, CA',
-            lat: 37.7682,
-            lng: -122.3892,
-            contactPerson: 'Dara Khosrowshahi',
-            phone: '+1 (555) 444-2222',
-            email: 'dara@rideshare.com'
+            name: 'GEC Circle Distributor',
+            address: 'GEC Circle, Chittagong',
+            lat: 22.3592,
+            lng: 91.8214,
+            contactPerson: 'Arifur Rahman',
+            phone: '01819334455',
+            email: 'arif@gecdist.com'
           },
           {
             id: 'cust_3',
-            name: 'UCSF Medical Center',
-            address: '505 Parnassus Ave, San Francisco, CA',
-            lat: 37.7631,
-            lng: -122.4578,
-            contactPerson: 'Dr. Elizabeth Blackwell',
-            phone: '+1 (555) 444-3333',
-            email: 'eblackwell@ucsf.edu'
+            name: 'Dhaka Central Foods Store',
+            address: 'Gulshan-2, Dhaka',
+            lat: 23.7925,
+            lng: 90.4162,
+            contactPerson: 'Kamrul Hasan',
+            phone: '01911445566',
+            email: 'kamrul@dhakastore.com'
           },
           {
             id: 'cust_4',
-            name: 'Fisherman\'s Wharf Retail Mall',
-            address: 'Pier 39, San Francisco, CA',
-            lat: 37.8087,
-            lng: -122.4098,
-            contactPerson: 'Captain John Sterling',
-            phone: '+1 (555) 444-4444',
-            email: 'jsterling@pier39.com'
+            name: 'Chawkbazar Wholesale Agency',
+            address: 'Chawkbazar, Chittagong',
+            lat: 22.3565,
+            lng: 91.8354,
+            contactPerson: 'Md. Forkan',
+            phone: '01511556677',
+            email: 'forkan@chawkmarket.com'
           },
           {
             id: 'cust_5',
-            name: 'Dolores Park Cafe',
-            address: '501 Dolores St, San Francisco, CA',
-            lat: 37.7598,
-            lng: -122.4269,
-            contactPerson: 'Clara Oswald',
-            phone: '+1 (555) 444-5555',
-            email: 'clara@dolorescafe.com'
+            name: 'Halishahar Steel Outlet',
+            address: 'Halishahar, Chittagong',
+            lat: 22.3168,
+            lng: 91.7824,
+            contactPerson: 'Sajidul Islam',
+            phone: '01611667788',
+            email: 'sajid@halishaharoutlet.com'
           }
         ]
       });
 
       console.log('Seeding employees & devices...');
-      // Employees & Devices
       const employeesData = [
         {
           id: 'emp_new_1',
-          name: 'Samuel Jackson',
-          email: 'samuel@metrologix.com',
-          role: 'Trainee Technician',
-          phone: '+1 (555) 999-8888',
+          name: 'Md. Asif Rahman',
+          email: 'asif@abulkhairgroup.com',
+          role: 'Trainee Officer',
+          phone: '01712345678',
           status: 'OFFLINE',
           lastLat: 0.0,
           lastLng: 0.0,
+          department: 'HR',
+          designation: 'Trainee',
+          branch: 'Chittagong',
+          factory: 'Steel Plant',
+          region: 'Chattogram',
+          photoUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
+          qrCode: 'AKG-EMP-EMP-000',
+          employeeCode: 'EMP-000',
           device: {
             deviceName: 'Pending Binding',
             platform: 'iOS',
@@ -188,13 +192,21 @@ export class SeedController {
         },
         {
           id: 'emp_1',
-          name: 'Alex Rivera',
-          email: 'alex@metrologix.com',
+          name: 'Tanvir Ahmed',
+          email: 'tanvir@abulkhairgroup.com',
           role: 'Delivery Rider',
-          phone: '+1 (555) 123-4567',
+          phone: '01812345678',
           status: 'TRAVELING',
-          lastLat: 37.7858,
-          lastLng: -122.4065,
+          lastLat: 22.3255,
+          lastLng: 91.8105,
+          department: 'Logistics',
+          designation: 'Rider',
+          branch: 'Chittagong',
+          factory: 'Cement Plant',
+          region: 'Chattogram',
+          photoUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150',
+          qrCode: 'AKG-EMP-EMP-001',
+          employeeCode: 'EMP-001',
           device: {
             deviceName: 'Samsung Galaxy S23 Ultra',
             platform: 'Android',
@@ -205,13 +217,21 @@ export class SeedController {
         },
         {
           id: 'emp_2',
-          name: 'Sarah Jenkins',
-          email: 'sarah@metrologix.com',
-          role: 'Senior Sales Rep',
-          phone: '+1 (555) 987-6543',
+          name: 'Sadia Karim',
+          email: 'sadia@abulkhairgroup.com',
+          role: 'Senior Sales Executive',
+          phone: '01912345678',
           status: 'IDLE',
-          lastLat: 37.7648,
-          lastLng: -122.4215,
+          lastLat: 23.7945,
+          lastLng: 90.4075,
+          department: 'Sales',
+          designation: 'Sales Rep',
+          branch: 'Dhaka',
+          factory: 'Foods Plant',
+          region: 'Dhaka',
+          photoUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
+          qrCode: 'AKG-EMP-EMP-002',
+          employeeCode: 'EMP-002',
           device: {
             deviceName: 'iPhone 15 Pro Max',
             platform: 'iOS',
@@ -222,13 +242,21 @@ export class SeedController {
         },
         {
           id: 'emp_3',
-          name: 'Michael Chang',
-          email: 'michael@metrologix.com',
+          name: 'Md. Kazi Farhan',
+          email: 'farhan@abulkhairgroup.com',
           role: 'Field Service Engineer',
-          phone: '+1 (555) 456-7890',
+          phone: '01512345678',
           status: 'BREAK',
-          lastLat: 37.7592,
-          lastLng: -122.4348,
+          lastLat: 22.4350,
+          lastLng: 91.7350,
+          department: 'Maintenance',
+          designation: 'Engineer',
+          branch: 'Chittagong',
+          factory: 'Steel Plant',
+          region: 'Chattogram',
+          photoUrl: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150',
+          qrCode: 'AKG-EMP-EMP-003',
+          employeeCode: 'EMP-003',
           device: {
             deviceName: 'Google Pixel 8 Pro',
             platform: 'Android',
@@ -239,13 +267,21 @@ export class SeedController {
         },
         {
           id: 'emp_4',
-          name: 'Elena Rostova',
-          email: 'elena@metrologix.com',
+          name: 'Nusrat Jahan',
+          email: 'nusrat@abulkhairgroup.com',
           role: 'Technical Audit Lead',
-          phone: '+1 (555) 789-0123',
+          phone: '01612345678',
           status: 'ONLINE',
-          lastLat: 37.7946,
-          lastLng: -122.4014,
+          lastLat: 22.3244,
+          lastLng: 91.8122,
+          department: 'Quality Assurance',
+          designation: 'Lead Auditor',
+          branch: 'Chittagong',
+          factory: 'Steel Plant',
+          region: 'Chattogram',
+          photoUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150',
+          qrCode: 'AKG-EMP-EMP-004',
+          employeeCode: 'EMP-004',
           device: {
             deviceName: 'iPhone 14 Pro',
             platform: 'iOS',
@@ -256,15 +292,23 @@ export class SeedController {
         },
         {
           id: 'emp_5',
-          name: 'David Kim',
-          email: 'david@metrologix.com',
-          role: 'HVAC Technician',
-          phone: '+1 (555) 321-7654',
+          name: 'Sajib Chowdhury',
+          email: 'sajib@abulkhairgroup.com',
+          role: 'Logistics Coordinator',
+          phone: '01722345678',
           status: 'TRAVELING',
-          lastLat: 37.8021,
-          lastLng: -122.4187,
+          lastLat: 23.8820,
+          lastLng: 90.4010,
+          department: 'Logistics',
+          designation: 'Coordinator',
+          branch: 'Dhaka',
+          factory: 'Foods Plant',
+          region: 'Dhaka',
+          photoUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150',
+          qrCode: 'AKG-EMP-EMP-005',
+          employeeCode: 'EMP-005',
           device: {
-            deviceName: 'Zebra TC57 Rugged PDA',
+            deviceName: 'Zebra Rugged PDA',
             platform: 'Android',
             isGpsEnabled: true,
             locationPermission: 'GRANTED',
@@ -286,6 +330,14 @@ export class SeedController {
             lastLat: e.lastLat,
             lastLng: e.lastLng,
             lastLocationUpdate: new Date(),
+            department: e.department,
+            designation: e.designation,
+            branch: e.branch,
+            factory: e.factory,
+            region: e.region,
+            photoUrl: e.photoUrl,
+            qrCode: e.qrCode,
+            employeeCode: e.employeeCode,
           }
         });
 
@@ -315,7 +367,6 @@ export class SeedController {
       }
 
       console.log('Seeding visits...');
-      // Visits
       const todayStr = new Date().toISOString().split('T')[0];
       await this.prisma.client.visit.createMany({
         data: [
@@ -328,9 +379,9 @@ export class SeedController {
             arrivalTime: new Date(Date.now() - 14400000),
             departureTime: new Date(Date.now() - 11800000),
             duration: 43,
-            notes: 'Signed contract renewal for 5,000 corporate accounts. Highly successful meeting.',
+            notes: 'Completed inventory validation. Orders booked for 10 tons of steel coils.',
             photoUrl: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=400',
-            signature: 'S. Jenkins'
+            signature: 'Sadia Karim'
           },
           {
             id: 'v_2',
@@ -338,8 +389,8 @@ export class SeedController {
             customerId: 'cust_2',
             date: todayStr,
             status: 'ONGOING',
-            arrivalTime: new Date(Date.now() - 1800000),
-            notes: 'In active discussion regarding custom logistical pipelines. Testing API responses.',
+            arrivalTime: new Date(Date.now() - 180000),
+            notes: 'Reviewing credit limits with local dealer. Very positive response.',
           },
           {
             id: 'v_3',
@@ -357,9 +408,9 @@ export class SeedController {
             arrivalTime: new Date(Date.now() - 7200000),
             departureTime: new Date(Date.now() - 3600000),
             duration: 60,
-            notes: 'Completed repair of high-voltage backup chiller controls. Tested safely.',
+            notes: 'Restored backup generator control unit. Passed testing sequence.',
             photoUrl: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=400',
-            signature: 'M. Chang'
+            signature: 'K. Farhan'
           },
           {
             id: 'v_5',
@@ -377,15 +428,14 @@ export class SeedController {
             arrivalTime: new Date(Date.now() - 10000000),
             departureTime: new Date(Date.now() - 9200000),
             duration: 13,
-            notes: 'Package containing primary thermal sensors delivered to Clara Oswald.',
+            notes: 'Delivered urgent documents and invoice proofs to the outlet supervisor.',
             photoUrl: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=400',
-            signature: 'C. Oswald'
+            signature: 'Sajidul Islam'
           }
         ]
       });
 
       console.log('Seeding attendance...');
-      // Attendance
       await this.prisma.client.attendance.createMany({
         data: [
           {
@@ -437,12 +487,11 @@ export class SeedController {
       });
 
       console.log('Seeding notifications...');
-      // Notifications
       await this.prisma.client.notification.createMany({
         data: [
           {
             employeeId: 'emp_5',
-            employeeName: 'David Kim',
+            employeeName: 'Sajib Chowdhury',
             type: 'LOW_BATTERY',
             message: 'Device battery has dropped below critical level (18%). Location tracking might stop.',
             timestamp: new Date(Date.now() - 300000),
@@ -450,15 +499,15 @@ export class SeedController {
           },
           {
             employeeId: 'emp_1',
-            employeeName: 'Alex Rivera',
+            employeeName: 'Tanvir Ahmed',
             type: 'GEOFENCE_EXIT',
-            message: 'Exited geofence "North SOMA Logistics Hub" traveling at 34 km/h.',
+            message: 'Exited geofence "AKG Chittagong Corporate Office" traveling at 34 km/h.',
             timestamp: new Date(Date.now() - 600000),
             read: false,
           },
           {
             employeeId: 'emp_3',
-            employeeName: 'Michael Chang',
+            employeeName: 'Md. Kazi Farhan',
             type: 'GPS_DISABLED',
             message: 'GPS precision altered to Low Power Mode. Location tracking accuracy might be compromised.',
             timestamp: new Date(Date.now() - 1200000),
@@ -466,9 +515,9 @@ export class SeedController {
           },
           {
             employeeId: 'emp_1',
-            employeeName: 'Alex Rivera',
+            employeeName: 'Tanvir Ahmed',
             type: 'SPEED_LIMIT',
-            message: 'Exceeded safe speed limit (34 km/h in Downtown SOMA area).',
+            message: 'Exceeded safe speed limit (34 km/h in Agrabad corporate corridor).',
             timestamp: new Date(Date.now() - 150000),
             read: false,
           }
@@ -478,7 +527,7 @@ export class SeedController {
       console.log('Database Seeding Complete.');
       return {
         status: 'success',
-        message: 'Database seeded successfully with all MetroLogix live demo configurations.',
+        message: 'Database seeded successfully with Abul Khair Group live configurations.',
       };
     } catch (e: any) {
       console.error('Seeding Error:', e);

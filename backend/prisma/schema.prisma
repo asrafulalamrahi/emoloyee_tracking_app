@@ -32,6 +32,14 @@ model Employee {
   phone              String?
   status             String   @default("OFFLINE")
 
+  department         String?   @default("Operations")
+  designation        String?   @default("Staff")
+  branch             String?   @default("Chittagong")
+  factory            String?   @default("Steel Plant")
+  region             String?   @default("Chattogram")
+  photoUrl           String?   @default("https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150")
+  qrCode             String?   @default("")
+
   lastLat            Float?
   lastLng            Float?
   lastLocationUpdate DateTime?

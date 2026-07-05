@@ -42,7 +42,9 @@ import {
   Users,
   Smartphone,
   QrCode,
-  Key
+  Key,
+  Edit,
+  Trash2
 } from 'lucide-react';
 import { HISTORICAL_ROUTES } from '../data';
 
@@ -59,6 +61,8 @@ interface AdminDashboardProps {
   onAddNotification: (notif: { type: string; message: string; empId: string }) => void;
   onClearNotifications: () => void;
   onUpdateEmployee: (emp: Employee) => void;
+  onAddEmployee: (emp: any) => Promise<void>;
+  onDeleteEmployee: (id: string) => Promise<void>;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -74,6 +78,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onAddNotification,
   onClearNotifications,
   onUpdateEmployee,
+  onAddEmployee,
+  onDeleteEmployee,
 }) => {
   // Navigation Tabs
   const [activeTab, setActiveTab] = useState<'map' | 'replay' | 'geofence' | 'attendance' | 'visits' | 'reports' | 'employees'>('map');
@@ -102,13 +108,49 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Selected Employee Control Sub-tabs
   const [empDetailsTab, setEmpDetailsTab] = useState<'gis' | 'security' | 'ai'>('gis');
 
-  // Filtered employees list for sidebar
+  // Employee CRUD Modal states
+  const [isEmployeeModalOpen, setIsEmployeeModalOpen] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [selectedQrCode, setSelectedQrCode] = useState<string | null>(null);
+
+  // Form Fields
+  const [formName, setFormName] = useState('');
+  const [formEmail, setFormEmail] = useState('');
+  const [formPassword, setFormPassword] = useState('');
+  const [formPhone, setFormPhone] = useState('');
+  const [formRole, setFormRole] = useState('RIDER');
+  const [formCode, setFormCode] = useState('');
+  const [formDepartment, setFormDepartment] = useState('Operations');
+  const [formDesignation, setFormDesignation] = useState('Staff');
+  const [formBranch, setFormBranch] = useState('Chittagong');
+  const [formFactory, setFormFactory] = useState('Steel Plant');
+  const [formRegion, setFormRegion] = useState('Chattogram');
+  const [formPhotoUrl, setFormPhotoUrl] = useState('');
+  const [formDeviceName, setFormDeviceName] = useState('');
+  const [formDevicePlatform, setFormDevicePlatform] = useState('Android');
+
+  // Employee Tab Filters
+  const [deptFilter, setDeptFilter] = useState('ALL');
+  const [branchFilter, setBranchFilter] = useState('ALL');
+  const [factoryFilter, setFactoryFilter] = useState('ALL');
+  const [regionFilter, setRegionFilter] = useState('ALL');
+
+  // Filtered employees list for sidebar and personnel directory
   const filteredEmployees = employees.filter(emp => {
-    const matchesSearch = emp.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          emp.role.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesTeam = teamFilter === 'ALL' || emp.team.includes(teamFilter);
+    const searchLower = searchTerm.toLowerCase();
+    const matchesSearch = emp.name.toLowerCase().includes(searchLower) || 
+                          emp.role.toLowerCase().includes(searchLower) ||
+                          (emp.email && emp.email.toLowerCase().includes(searchLower)) ||
+                          (emp.employeeCode && emp.employeeCode.toLowerCase().includes(searchLower));
+                          
+    const matchesTeam = teamFilter === 'ALL' || (emp.team && emp.team.includes(teamFilter));
     const matchesStatus = statusFilter === 'ALL' || emp.status === statusFilter;
-    return matchesSearch && matchesTeam && matchesStatus;
+    const matchesDept = deptFilter === 'ALL' || emp.department === deptFilter;
+    const matchesBranch = branchFilter === 'ALL' || emp.branch === branchFilter;
+    const matchesFactory = factoryFilter === 'ALL' || emp.factory === factoryFilter;
+    const matchesRegion = regionFilter === 'ALL' || emp.region === regionFilter;
+    
+    return matchesSearch && matchesTeam && matchesStatus && matchesDept && matchesBranch && matchesFactory && matchesRegion;
   });
 
   // Get teams listed in company
@@ -116,7 +158,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // Route History Replay Player Hook
   useEffect(() => {
-    let timer: NodeJS.Timeout;
+    let timer: any;
     if (isReplaying) {
       const activeRoutes = HISTORICAL_ROUTES[replayEmpId] || [];
       const activeRoute = activeRoutes[0];
@@ -146,6 +188,81 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
     return () => clearInterval(timer);
   }, [isReplaying, replayEmpId, replaySpeed, employees]);
+
+  const handleCreateClick = () => {
+    setEditingEmployee(null);
+    setFormName('');
+    setFormEmail('');
+    setFormPassword('');
+    setFormPhone('');
+    setFormRole('RIDER');
+    setFormCode('');
+    setFormDepartment('Operations');
+    setFormDesignation('Staff');
+    setFormBranch('Chittagong');
+    setFormFactory('Steel Plant');
+    setFormRegion('Chattogram');
+    setFormPhotoUrl('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150');
+    setFormDeviceName('');
+    setFormDevicePlatform('Android');
+    setIsEmployeeModalOpen(true);
+  };
+
+  const handleEditClick = (emp: Employee) => {
+    setEditingEmployee(emp);
+    setFormName(emp.name);
+    setFormEmail(emp.email || '');
+    setFormPassword('');
+    setFormPhone(emp.phone || '');
+    setFormRole(emp.role || 'RIDER');
+    setFormCode(emp.employeeCode || '');
+    setFormDepartment(emp.department || 'Operations');
+    setFormDesignation(emp.designation || 'Staff');
+    setFormBranch(emp.branch || 'Chittagong');
+    setFormFactory(emp.factory || 'Steel Plant');
+    setFormRegion(emp.region || 'Chattogram');
+    setFormPhotoUrl(emp.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150');
+    setFormDeviceName(emp.deviceName || '');
+    setFormDevicePlatform(emp.devicePlatform || 'Android');
+    setIsEmployeeModalOpen(true);
+  };
+
+  const handleSaveEmployee = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const data = {
+      name: formName,
+      email: formEmail,
+      password: formPassword || undefined,
+      phone: formPhone,
+      role: formRole,
+      employeeCode: formCode,
+      department: formDepartment,
+      designation: formDesignation,
+      branch: formBranch,
+      factory: formFactory,
+      region: formRegion,
+      photoUrl: formPhotoUrl,
+      deviceName: formDeviceName || `${formName}'s Device`,
+      platform: formDevicePlatform
+    };
+
+    if (editingEmployee) {
+      await onUpdateEmployee({
+        ...editingEmployee,
+        ...data,
+        avatar: formPhotoUrl,
+      });
+    } else {
+      await onAddEmployee(data);
+    }
+    setIsEmployeeModalOpen(false);
+  };
+
+  const handleDeleteClick = async (id: string) => {
+    if (confirm("Are you sure you want to delete this employee?")) {
+      await onDeleteEmployee(id);
+    }
+  };
 
   // Handle map click to place new geofence
   const handleMapAddGeofence = (coords: Coordinates) => {
@@ -1559,7 +1676,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <h3 className="text-xl font-bold text-white font-sans tracking-tight">Enterprise Onboarding & Devices</h3>
                     <p className="text-xs text-slate-400 mt-1 font-mono">Provision accounts, generate hardware activation codes, and review pending fleet authorizations.</p>
                   </div>
-                  <button className="relative z-10 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-lg shadow-blue-900/50">
+                  <button onClick={handleCreateClick} className="relative z-10 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-lg shadow-blue-900/50">
                     <Plus className="w-4 h-4" />
                     Provision New Employee
                   </button>
@@ -1567,19 +1684,61 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                 {/* Employees List */}
                 <div className="bg-slate-950 border border-slate-850 rounded-2xl shadow-xl overflow-hidden flex flex-col h-[600px]">
-                  <div className="p-4 border-b border-slate-850 flex items-center justify-between">
+                  <div className="p-4 border-b border-slate-850 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
                     <h4 className="text-sm font-bold text-slate-200 uppercase tracking-wider font-mono">Personnel Roster & Activation Status</h4>
-                    <div className="flex gap-2">
-                      <div className="relative">
+                    <div className="flex flex-wrap gap-2 w-full lg:w-auto">
+                      <div className="relative flex-1 lg:flex-initial">
                         <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
                         <input
                           type="text"
                           placeholder="Search directory..."
                           value={searchTerm}
                           onChange={(e) => setSearchTerm(e.target.value)}
-                          className="w-64 bg-slate-900 border border-slate-800 text-white rounded-lg pl-9 pr-4 py-1.5 text-xs focus:outline-none focus:border-blue-500 font-mono"
+                          className="w-full lg:w-48 bg-slate-900 border border-slate-800 text-white rounded-lg pl-9 pr-4 py-1.5 text-xs focus:outline-none focus:border-blue-500 font-mono"
                         />
                       </div>
+                      <select
+                        value={deptFilter}
+                        onChange={(e) => setDeptFilter(e.target.value)}
+                        className="bg-slate-900 border border-slate-800 text-slate-300 rounded-lg px-2.5 py-1.5 text-[11px] font-mono focus:outline-none focus:border-blue-500"
+                      >
+                        <option value="ALL">All Depts</option>
+                        <option value="HR">HR</option>
+                        <option value="Logistics">Logistics</option>
+                        <option value="Sales">Sales</option>
+                        <option value="Maintenance">Maintenance</option>
+                        <option value="Quality Assurance">Quality Assurance</option>
+                      </select>
+                      <select
+                        value={branchFilter}
+                        onChange={(e) => setBranchFilter(e.target.value)}
+                        className="bg-slate-900 border border-slate-800 text-slate-300 rounded-lg px-2.5 py-1.5 text-[11px] font-mono focus:outline-none focus:border-blue-500"
+                      >
+                        <option value="ALL">All Branches</option>
+                        <option value="Chittagong">Chittagong</option>
+                        <option value="Dhaka">Dhaka</option>
+                        <option value="Sylhet">Sylhet</option>
+                        <option value="Rajshahi">Rajshahi</option>
+                      </select>
+                      <select
+                        value={factoryFilter}
+                        onChange={(e) => setFactoryFilter(e.target.value)}
+                        className="bg-slate-900 border border-slate-800 text-slate-300 rounded-lg px-2.5 py-1.5 text-[11px] font-mono focus:outline-none focus:border-blue-500"
+                      >
+                        <option value="ALL">All Factories</option>
+                        <option value="Steel Plant">Steel Plant</option>
+                        <option value="Cement Plant">Cement Plant</option>
+                        <option value="Foods Plant">Foods Plant</option>
+                      </select>
+                      <select
+                        value={regionFilter}
+                        onChange={(e) => setRegionFilter(e.target.value)}
+                        className="bg-slate-900 border border-slate-800 text-slate-300 rounded-lg px-2.5 py-1.5 text-[11px] font-mono focus:outline-none focus:border-blue-500"
+                      >
+                        <option value="ALL">All Regions</option>
+                        <option value="Chattogram">Chattogram</option>
+                        <option value="Dhaka">Dhaka</option>
+                      </select>
                     </div>
                   </div>
 
@@ -1606,25 +1765,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-4">
-                          {emp.deviceApprovalStatus === 'APPROVED' && (
-                            <div className="text-right">
-                              <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider font-mono flex items-center justify-end gap-1"><Shield className="w-3.5 h-3.5" /> DEVICE SECURE</span>
-                              <span className="text-[9px] text-slate-500 font-mono block">App v{emp.appVersion}</span>
-                            </div>
-                          )}
-                          {emp.deviceApprovalStatus === 'PENDING' && (
-                            <div className="flex gap-2">
-                              <button className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all">Authorize Hardware</button>
-                              <button className="bg-rose-900/50 hover:bg-rose-900 text-rose-400 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">Reject</button>
-                            </div>
-                          )}
-                          {emp.deviceApprovalStatus === 'NOT_ACTIVATED' && (
-                            <button className="bg-slate-800 hover:bg-slate-700 text-blue-400 px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1">
-                              <QrCode className="w-3.5 h-3.5" />
-                              Show QR Code
-                            </button>
-                          )}
+                        <div className="flex items-center gap-2">
+                          <button 
+                            onClick={() => setSelectedQrCode(emp.qrCode || `AKG-EMP-${emp.employeeCode || emp.id}`)}
+                            className="bg-slate-800 hover:bg-slate-700 text-blue-400 hover:text-white px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1"
+                            title="Show QR Code"
+                          >
+                            <QrCode className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">QR Code</span>
+                          </button>
+                          
+                          <button 
+                            onClick={() => handleEditClick(emp)}
+                            className="bg-slate-800 hover:bg-slate-700 text-amber-400 hover:text-white px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1"
+                            title="Edit Personnel"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                          </button>
+
+                          <button 
+                            onClick={() => handleDeleteClick(emp.id)}
+                            className="bg-slate-800 hover:bg-rose-950 text-rose-400 hover:text-white px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1"
+                            title="Delete Personnel"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -1683,6 +1848,245 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                      All devices undergo automated cryptographic verification. Mobile apps communicate strictly over TLS 1.3 using JWT bearer tokens and rotating refresh logic. Any mock location, rooting, or app tampering will immediately unbind the device and alert the admin.
                    </p>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Employee CRUD Modal */}
+          {isEmployeeModalOpen && (
+            <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-xl p-6 shadow-2xl overflow-y-auto max-h-[90vh] animate-fadeIn">
+                <div className="flex justify-between items-center border-b border-slate-850 pb-4 mb-4">
+                  <h3 className="text-sm font-bold text-white uppercase tracking-wider font-mono">
+                    {editingEmployee ? 'Edit Employee Profile' : 'Provision New Personnel'}
+                  </h3>
+                  <button 
+                    onClick={() => setIsEmployeeModalOpen(false)}
+                    className="text-slate-400 hover:text-white font-bold text-xs font-mono"
+                  >
+                    CLOSE [X]
+                  </button>
+                </div>
+
+                <form onSubmit={handleSaveEmployee} className="space-y-4 text-xs">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-slate-400 font-mono uppercase font-bold">Full Name</label>
+                      <input 
+                        type="text" 
+                        required 
+                        value={formName} 
+                        onChange={e => setFormName(e.target.value)} 
+                        className="w-full bg-slate-950 border border-slate-800 text-white rounded-lg p-2 focus:outline-none focus:border-blue-500"
+                        placeholder="e.g. Tanvir Ahmed"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-slate-400 font-mono uppercase font-bold">Email Address</label>
+                      <input 
+                        type="email" 
+                        required 
+                        value={formEmail} 
+                        onChange={e => setFormEmail(e.target.value)} 
+                        className="w-full bg-slate-950 border border-slate-800 text-white rounded-lg p-2 focus:outline-none focus:border-blue-500"
+                        placeholder="e.g. tanvir@abulkhairgroup.com"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-slate-400 font-mono uppercase font-bold">Password {editingEmployee && '(leave blank to keep)'}</label>
+                      <input 
+                        type="password" 
+                        required={!editingEmployee}
+                        value={formPassword} 
+                        onChange={e => setFormPassword(e.target.value)} 
+                        className="w-full bg-slate-950 border border-slate-800 text-white rounded-lg p-2 focus:outline-none focus:border-blue-500"
+                        placeholder={editingEmployee ? "••••••••" : "Min 6 characters"}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-slate-400 font-mono uppercase font-bold">Phone Number</label>
+                      <input 
+                        type="text" 
+                        value={formPhone} 
+                        onChange={e => setFormPhone(e.target.value)} 
+                        className="w-full bg-slate-950 border border-slate-800 text-white rounded-lg p-2 focus:outline-none focus:border-blue-500"
+                        placeholder="e.g. 01712345678"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-slate-400 font-mono uppercase font-bold">Employee Code / ID</label>
+                      <input 
+                        type="text" 
+                        required
+                        value={formCode} 
+                        onChange={e => setFormCode(e.target.value)} 
+                        className="w-full bg-slate-950 border border-slate-800 text-white rounded-lg p-2 focus:outline-none focus:border-blue-500"
+                        placeholder="e.g. EMP-101"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-slate-400 font-mono uppercase font-bold">Access Role</label>
+                      <select 
+                        value={formRole} 
+                        onChange={e => setFormRole(e.target.value)}
+                        className="w-full bg-slate-955 border border-slate-800 text-white rounded-lg p-2 focus:outline-none focus:border-blue-500"
+                      >
+                        <option value="RIDER">Delivery Rider</option>
+                        <option value="MERCHANDISER">Merchandiser</option>
+                        <option value="SUPERVISOR">Supervisor</option>
+                        <option value="HR">HR Specialist</option>
+                        <option value="ADMIN">System Admin</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-slate-400 font-mono uppercase font-bold">Department</label>
+                      <input 
+                        type="text" 
+                        value={formDepartment} 
+                        onChange={e => setFormDepartment(e.target.value)} 
+                        className="w-full bg-slate-950 border border-slate-800 text-white rounded-lg p-2 focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-slate-400 font-mono uppercase font-bold">Designation</label>
+                      <input 
+                        type="text" 
+                        value={formDesignation} 
+                        onChange={e => setFormDesignation(e.target.value)} 
+                        className="w-full bg-slate-950 border border-slate-800 text-white rounded-lg p-2 focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-slate-400 font-mono uppercase font-bold">Branch</label>
+                      <input 
+                        type="text" 
+                        value={formBranch} 
+                        onChange={e => setFormBranch(e.target.value)} 
+                        className="w-full bg-slate-950 border border-slate-800 text-white rounded-lg p-2 focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-slate-400 font-mono uppercase font-bold">Factory / Location</label>
+                      <input 
+                        type="text" 
+                        value={formFactory} 
+                        onChange={e => setFormFactory(e.target.value)} 
+                        className="w-full bg-slate-950 border border-slate-800 text-white rounded-lg p-2 focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-slate-400 font-mono uppercase font-bold">Region</label>
+                      <input 
+                        type="text" 
+                        value={formRegion} 
+                        onChange={e => setFormRegion(e.target.value)} 
+                        className="w-full bg-slate-950 border border-slate-800 text-white rounded-lg p-2 focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-slate-400 font-mono uppercase font-bold">Photo URL / Avatar</label>
+                    <input 
+                      type="text" 
+                      value={formPhotoUrl} 
+                      onChange={e => setFormPhotoUrl(e.target.value)} 
+                      className="w-full bg-slate-950 border border-slate-800 text-white rounded-lg p-2 focus:outline-none focus:border-blue-500"
+                      placeholder="e.g. https://images.unsplash.com/..."
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 border-t border-slate-850 pt-4 mt-2">
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-slate-400 font-mono uppercase font-bold">Device Name</label>
+                      <input 
+                        type="text" 
+                        value={formDeviceName} 
+                        onChange={e => setFormDeviceName(e.target.value)} 
+                        className="w-full bg-slate-950 border border-slate-800 text-white rounded-lg p-2 focus:outline-none focus:border-blue-500"
+                        placeholder="e.g. Samsung Galaxy S23"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-slate-400 font-mono uppercase font-bold">Device Platform</label>
+                      <select 
+                        value={formDevicePlatform} 
+                        onChange={e => setFormDevicePlatform(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 text-white rounded-lg p-2 focus:outline-none focus:border-blue-500"
+                      >
+                        <option value="Android">Android</option>
+                        <option value="iOS">iOS</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 justify-end pt-4 border-t border-slate-850 mt-4">
+                    <button 
+                      type="button" 
+                      onClick={() => setIsEmployeeModalOpen(false)}
+                      className="bg-slate-850 hover:bg-slate-800 text-slate-350 font-bold px-4 py-2 rounded-xl"
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      type="submit" 
+                      className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-5 py-2 rounded-xl shadow-lg shadow-blue-900/30"
+                    >
+                      {editingEmployee ? 'Save Changes' : 'Provision Account'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* QR Code Modal */}
+          {selectedQrCode && (
+            <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm p-6 shadow-2xl flex flex-col items-center space-y-4 animate-fadeIn">
+                <div className="w-full flex justify-between items-center border-b border-slate-850 pb-3">
+                  <span className="text-xs font-bold text-white uppercase tracking-wider font-mono">Employee Activation Code</span>
+                  <button 
+                    onClick={() => setSelectedQrCode(null)}
+                    className="text-slate-400 hover:text-white font-bold text-xs font-mono"
+                  >
+                    [X]
+                  </button>
+                </div>
+                
+                <div className="bg-white p-4 rounded-2xl shadow-inner flex items-center justify-center border-4 border-blue-500/20">
+                  <img 
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(selectedQrCode)}`} 
+                    alt="Employee QR Activation Code" 
+                    className="w-40 h-40 object-contain"
+                  />
+                </div>
+
+                <div className="text-center space-y-1">
+                  <span className="font-mono text-sm font-bold text-emerald-400 tracking-widest">{selectedQrCode}</span>
+                  <p className="text-[10px] text-slate-400 leading-relaxed max-w-[240px]">
+                    Scan this QR code using the Abul Khair Group tracker mobile client app to register and bind this device.
+                  </p>
+                </div>
+
+                <button 
+                  onClick={() => setSelectedQrCode(null)}
+                  className="w-full bg-slate-800 hover:bg-slate-750 text-white font-bold py-2 rounded-xl text-xs"
+                >
+                  Dismiss Card
+                </button>
               </div>
             </div>
           )}

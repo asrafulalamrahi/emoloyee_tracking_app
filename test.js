@@ -1,5 +1,6 @@
+require('./backend/node_modules/dotenv').config();
 const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient({ datasources: { db: { url: 'file:../dev.db' } } });
+const prisma = new PrismaClient();
 
 async function main() {
   try {
